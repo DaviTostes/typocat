@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"math/rand"
 	"os"
@@ -22,6 +23,11 @@ var frames = []string{
  / >☕
 /|_|_|\`,
 }
+
+var incorrectFrame = `  /\_/\  
+ ( T.T ) 
+  / >🥀  
+ /|_|_|\ `
 
 var colors = []string{
 	"#FF0000", // red
@@ -51,17 +57,39 @@ var texts = []string{
 	`Once upon a midnight dreary, While I pondered, weak and weary, Over many a quaint and curious Volume of forgotten lore- While I nodded, nearly napping, Suddenly there came a tapping, As of some one gently rapping, Rapping at my chamber door. "'T is some visitor," I muttered, "Tapping at my chamber door Only this and nothing more."`,
 }
 
+var combosTexts = map[int]func(c int) string{
+	0:   func(c int) string { return "Yay!" },
+	10:  func(c int) string { return fmt.Sprintf("Nice. %dx combo", c) },
+	20:  func(c int) string { return fmt.Sprintf("Amazing! %dx combo", c) },
+	50:  func(c int) string { return fmt.Sprintf("Incredible!! %dx combo", c) },
+	100: func(c int) string { return fmt.Sprintf("SPLENDID!!!. %dX COMBO", c) },
+}
+
 func randomColor() string {
 	r := rand.Intn(len(colors) - 1)
 	return colors[r]
 }
 
 type model struct {
-	viewport viewport.Model
-	keys     []string
-	textKeys []string
-	correct  bool
-	frame    int
+	viewport    viewport.Model
+	keys        []string
+	textKeys    []string
+	correct     bool
+	correctText string
+	frame       int
+	combo       int
+}
+
+type comboMsg struct {
+	fn func(int) string
+}
+
+func (m *model) comboCmd(fn func(int) string) tea.Cmd {
+	return func() tea.Msg {
+		return comboMsg{
+			fn: fn,
+		}
+	}
 }
 
 func InitModel() model {
@@ -72,21 +100,37 @@ func InitModel() model {
 	textKeys := strings.Split(texts[0], "")
 
 	return model{
-		viewport: vp,
-		keys:     []string{},
-		textKeys: textKeys,
-		correct:  false,
-		frame:    0,
+		viewport:    vp,
+		keys:        []string{},
+		textKeys:    textKeys,
+		correct:     false,
+		correctText: "",
+		frame:       0,
+		combo:       0,
 	}
 }
 
 func (m *model) renderViewportContent() {
+	frame := incorrectFrame
+	if m.correct {
+		if m.combo < 10 {
+			m.correctText = "Yay!"
+		}
+		fn := combosTexts[m.combo]
+		if fn != nil {
+			m.correctText = fn(m.combo)
+		}
+
+		m.frame ^= 1
+		frame = frames[m.frame]
+	}
+
 	cat := lipgloss.NewStyle().
 		Foreground(lipgloss.Color(randomColor())).
 		Align(lipgloss.Center).
 		Render(
 			"TYPOCAT\n\n" +
-				frames[m.frame],
+				frame,
 		)
 
 	text := ""
@@ -109,18 +153,13 @@ func (m *model) renderViewportContent() {
 		Align(lipgloss.Center).
 		Render(text)
 
-	correctText := ""
-	if m.correct {
-		correctText = "Yay!"
-	}
-
 	content := lipgloss.JoinVertical(
 		lipgloss.Center,
 		cat,
 		"",
 		text,
 		"",
-		correctText,
+		m.correctText,
 	)
 
 	content = lipgloss.Place(
@@ -132,8 +171,6 @@ func (m *model) renderViewportContent() {
 	)
 
 	m.viewport.SetContent(content)
-
-	m.frame ^= 1
 }
 
 func (m model) Init() tea.Cmd {
@@ -161,8 +198,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		default:
 			m.keys = append(m.keys, msg.String())
 			if len(m.keys) > 0 {
-				m.correct = m.keys[len(m.keys)-1] == m.textKeys[len(m.keys)-1]
+				m.correct = m.keys[len(m.keys)-1] == m.textKeys[len(m.keys)-1] ||
+					(msg.String() == "space" && m.textKeys[len(m.keys)-1] == " ")
+
+				if m.correct {
+					m.combo++
+					return m, m.comboCmd(combosTexts[m.combo])
+				} else {
+					m.combo = 0
+				}
 			}
+		}
+
+	case comboMsg:
+		if msg.fn != nil {
+			m.correctText = msg.fn(m.combo)
 		}
 	}
 
