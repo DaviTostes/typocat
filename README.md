@@ -7,7 +7,7 @@
 /|_|_|\
 ```
 
-[Video](./video.mp4)
+[![](https://raw.githubusercontent.com/davitostes/typocat/master/thumbnail.png)](https://raw.githubusercontent.com/davitostes/typocat/master/video.mp4)
 
 Tiny terminal typing trainer. Cat watches. Combo grows. Mistype and the kitty wilts.
 
