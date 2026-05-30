@@ -53,10 +53,6 @@ var colors = []string{
 	"#FF00FF", // magenta
 }
 
-var texts = []string{
-	`Once upon a midnight dreary, While I pondered, weak and weary, Over many a quaint and curious Volume of forgotten lore- While I nodded, nearly napping, Suddenly there came a tapping, As of some one gently rapping, Rapping at my chamber door. "'T is some visitor," I muttered, "Tapping at my chamber door Only this and nothing more."`,
-}
-
 var combosTexts = map[int]func(c int) string{
 	0:   func(c int) string { return "Yay!" },
 	10:  func(c int) string { return fmt.Sprintf("Nice. %dx combo", c) },
@@ -97,7 +93,7 @@ func InitModel() model {
 	vp.KeyMap.Left.SetEnabled(false)
 	vp.KeyMap.Right.SetEnabled(false)
 
-	textKeys := strings.Split(texts[0], "")
+	textKeys := strings.Split(texts[rand.Intn(len(texts))], "")
 
 	return model{
 		viewport:    vp,
@@ -198,6 +194,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		default:
 			m.keys = append(m.keys, msg.String())
 			if len(m.keys) > 0 {
+				if len(m.keys) >= len(m.textKeys) {
+					return m, tea.Quit
+				}
+
 				m.correct = m.keys[len(m.keys)-1] == m.textKeys[len(m.keys)-1] ||
 					(msg.String() == "space" && m.textKeys[len(m.keys)-1] == " ")
 
